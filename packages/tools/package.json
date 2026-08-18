@@ -1,0 +1,10 @@
+{
+  "name": "@research/tools",
+  "version": "0.1.0",
+  "private": true,
+  "files": ["dist"],
+  "type": "module",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "scripts": { "build": "tsc -p tsconfig.json", "check": "tsc --noEmit -p tsconfig.json", "test": "vitest run --passWithNoTests" },
+  "dependencies": { "@research/contracts": "workspace:*", "@research/knowledge": "workspace:*", "@research/reports": "workspace:*", "zod": "^3.24.1" }
+}

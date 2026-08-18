@@ -1,0 +1,30 @@
+{
+  "name": "interactive-research-agent",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22.23.2 <23",
+    "pnpm": "9.15.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --workspace-concurrency=1 build",
+    "check": "pnpm build && pnpm -r check",
+    "test": "pnpm build && pnpm -r test",
+    "eval:golden": "pnpm --filter @research/evaluation exec vitest run test/golden/release-gate.test.ts",
+    "check:openapi": "node scripts/validate-openapi.mjs",
+    "check:infra": "node scripts/validate-infra.mjs",
+    "check:container": "node scripts/validate-container.mjs",
+    "check:ci": "node scripts/validate-ci.mjs",
+    "check:operations": "node scripts/validate-operations.mjs",
+    "check:runtime-profiles": "node scripts/validate-runtime-profiles.mjs",
+    "dev:api": "pnpm --filter @research/api dev",
+    "dev:web": "pnpm --filter @research/web dev",
+    "dev:worker": "pnpm --filter @research/worker dev"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

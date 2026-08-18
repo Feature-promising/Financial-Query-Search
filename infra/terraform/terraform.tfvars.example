@@ -1,0 +1,96 @@
+# Copy to a protected environment-specific tfvars file. Every value below is
+# an identifier, image digest, or Secrets Manager/Parameter Store reference;
+# do not put a password, token, or tool manifest JSON in this file.
+aws_region      = "us-west-2"
+name            = "interactive-research-agent"
+ecs_cluster_arn = "arn:aws:ecs:us-west-2:123456789012:cluster/research"
+
+private_subnet_ids = ["subnet-REPLACE", "subnet-REPLACE"]
+security_group_ids = ["sg-REPLACE"]
+
+task_execution_role_arn        = "arn:aws:iam::123456789012:role/research-ecs-execution"
+api_task_role_arn              = "arn:aws:iam::123456789012:role/research-api"
+worker_task_role_arn           = "arn:aws:iam::123456789012:role/research-worker"
+sec_ingestion_task_role_arn    = "arn:aws:iam::123456789012:role/research-sec-ingestion"
+memory_retention_task_role_arn = "arn:aws:iam::123456789012:role/research-memory-retention"
+migration_task_role_arn        = "arn:aws:iam::123456789012:role/research-migration"
+eventbridge_invoke_role_arn    = "arn:aws:iam::123456789012:role/research-eventbridge-ecs"
+
+# Pin immutable image digests from the candidate CI release.
+api_image    = "123456789012.dkr.ecr.us-west-2.amazonaws.com/research-api@sha256:REPLACE"
+worker_image = "123456789012.dkr.ecr.us-west-2.amazonaws.com/research-worker@sha256:REPLACE"
+web_image    = "123456789012.dkr.ecr.us-west-2.amazonaws.com/research-web@sha256:REPLACE"
+
+api_target_group_arn = "arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/research-api/REPLACE"
+web_target_group_arn = "arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/research-web/REPLACE"
+api_cors_allowed_origins = "https://research.example.com"
+worker_otlp_traces_endpoint = "https://otel.example.com/v1/traces"
+worker_bedrock_embedding_input_cost_per_1k_usd = 0.0001
+
+# Each map must contain exactly the configured keys. `valueFrom` values are
+# Secrets Manager or Parameter Store ARNs, optionally with an approved JSON
+# field selector; see the ECS secrets documentation for the deployed region.
+api_secrets = {
+  DATABASE_URL                = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-api:DATABASE_URL::"
+  REDIS_URL                   = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-api:REDIS_URL::"
+  BEDROCK_EMBEDDING_MODEL_ID  = "arn:aws:ssm:us-west-2:123456789012:parameter/research/embedding-model"
+  OPENSEARCH_ENDPOINT         = "arn:aws:ssm:us-west-2:123456789012:parameter/research/opensearch-endpoint"
+  OPENSEARCH_INDEX            = "arn:aws:ssm:us-west-2:123456789012:parameter/research/opensearch-index"
+  EVIDENCE_S3_BUCKET          = "arn:aws:ssm:us-west-2:123456789012:parameter/research/evidence-bucket"
+  NEO4J_URI                   = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_URI::"
+  NEO4J_USERNAME              = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_USERNAME::"
+  NEO4J_PASSWORD              = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_PASSWORD::"
+  OIDC_ISSUER                 = "arn:aws:ssm:us-west-2:123456789012:parameter/research/oidc-issuer"
+  OIDC_AUDIENCE               = "arn:aws:ssm:us-west-2:123456789012:parameter/research/oidc-audience"
+  TOOL_MANIFEST_CATALOG_JSON  = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-tool-catalog"
+}
+
+worker_secrets = {
+  DATABASE_URL                    = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-worker:DATABASE_URL::"
+  REDIS_URL                       = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-worker:REDIS_URL::"
+  BEDROCK_MODEL_ID                = "arn:aws:ssm:us-west-2:123456789012:parameter/research/chat-model"
+  BEDROCK_EMBEDDING_MODEL_ID      = "arn:aws:ssm:us-west-2:123456789012:parameter/research/embedding-model"
+  BEDROCK_INPUT_COST_PER_1K_USD   = "arn:aws:ssm:us-west-2:123456789012:parameter/research/chat-input-cost"
+  BEDROCK_OUTPUT_COST_PER_1K_USD  = "arn:aws:ssm:us-west-2:123456789012:parameter/research/chat-output-cost"
+  OPENSEARCH_ENDPOINT             = "arn:aws:ssm:us-west-2:123456789012:parameter/research/opensearch-endpoint"
+  OPENSEARCH_INDEX                = "arn:aws:ssm:us-west-2:123456789012:parameter/research/opensearch-index"
+  EVIDENCE_S3_BUCKET              = "arn:aws:ssm:us-west-2:123456789012:parameter/research/evidence-bucket"
+  REDSHIFT_WORKGROUP              = "arn:aws:ssm:us-west-2:123456789012:parameter/research/redshift-workgroup"
+  REDSHIFT_DATABASE               = "arn:aws:ssm:us-west-2:123456789012:parameter/research/redshift-database"
+  REDSHIFT_SECRET_ARN             = "arn:aws:ssm:us-west-2:123456789012:parameter/research/redshift-secret-arn"
+  MARKET_DATA_LICENSE             = "arn:aws:ssm:us-west-2:123456789012:parameter/research/market-data-license"
+  NEO4J_URI                       = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_URI::"
+  NEO4J_USERNAME                  = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_USERNAME::"
+  NEO4J_PASSWORD                  = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_PASSWORD::"
+  SEC_USER_AGENT                  = "arn:aws:ssm:us-west-2:123456789012:parameter/research/sec-user-agent"
+  TOOL_MANIFEST_CATALOG_JSON      = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-tool-catalog"
+}
+
+sec_ingestion_secrets = {
+  DATABASE_URL               = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-ingestion:DATABASE_URL::"
+  SEC_USER_AGENT             = "arn:aws:ssm:us-west-2:123456789012:parameter/research/sec-user-agent"
+  BEDROCK_EMBEDDING_MODEL_ID = "arn:aws:ssm:us-west-2:123456789012:parameter/research/embedding-model"
+  OPENSEARCH_ENDPOINT        = "arn:aws:ssm:us-west-2:123456789012:parameter/research/opensearch-endpoint"
+  OPENSEARCH_INDEX           = "arn:aws:ssm:us-west-2:123456789012:parameter/research/opensearch-index"
+  EVIDENCE_S3_BUCKET         = "arn:aws:ssm:us-west-2:123456789012:parameter/research/evidence-bucket"
+  NEO4J_URI                  = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_URI::"
+  NEO4J_USERNAME             = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_USERNAME::"
+  NEO4J_PASSWORD             = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_PASSWORD::"
+  SEC_INGEST_TENANT_ID       = "arn:aws:ssm:us-west-2:123456789012:parameter/research/sec-ingest-tenant-id"
+  SEC_INGEST_TICKERS         = "arn:aws:ssm:us-west-2:123456789012:parameter/research/sec-ingest-tickers"
+}
+
+memory_retention_secrets = {
+  DATABASE_URL               = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-retention:DATABASE_URL::"
+  BEDROCK_EMBEDDING_MODEL_ID = "arn:aws:ssm:us-west-2:123456789012:parameter/research/embedding-model"
+  OPENSEARCH_ENDPOINT        = "arn:aws:ssm:us-west-2:123456789012:parameter/research/opensearch-endpoint"
+  OPENSEARCH_INDEX           = "arn:aws:ssm:us-west-2:123456789012:parameter/research/opensearch-index"
+  EVIDENCE_S3_BUCKET         = "arn:aws:ssm:us-west-2:123456789012:parameter/research/evidence-bucket"
+  NEO4J_URI                  = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_URI::"
+  NEO4J_USERNAME             = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_USERNAME::"
+  NEO4J_PASSWORD             = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-graph:NEO4J_PASSWORD::"
+}
+
+migration_secrets = {
+  DATABASE_URL = "arn:aws:secretsmanager:us-west-2:123456789012:secret:research-migration:DATABASE_URL::"
+}

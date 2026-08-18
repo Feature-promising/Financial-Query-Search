@@ -1,0 +1,11 @@
+{
+  "name": "@research/worker",
+  "version": "0.1.0",
+  "private": true,
+  "files": ["dist"],
+  "type": "module",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "scripts": { "build": "tsc -p tsconfig.json", "check": "tsc --noEmit -p tsconfig.json", "test": "vitest run --passWithNoTests", "dev": "tsx watch src/main.ts", "start": "node dist/main.js", "migrate": "node dist/migrate-main.js" },
+  "dependencies": { "@research/agent-runtime": "workspace:*", "@research/config": "workspace:*", "@research/contracts": "workspace:*", "@research/conversation": "workspace:*", "@research/db": "workspace:*", "@research/knowledge": "workspace:*", "@research/live-events": "workspace:*", "@research/memory": "workspace:*", "@research/models": "workspace:*", "@research/observability": "workspace:*", "@research/platform-events": "workspace:*", "@research/queue": "workspace:*", "@research/reports": "workspace:*", "@research/runs": "workspace:*", "@research/tools": "workspace:*", "zod": "^3.24.1" },
+  "devDependencies": { "tsx": "^4.19.2" }
+}

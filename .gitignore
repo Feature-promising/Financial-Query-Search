@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+.pnpm-store/
+.turbo/
+dist/
+.next/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+legacy/python-prototype/LangGraph/chat_history.db
+legacy/python-prototype/LangGraph/__pycache__/
+legacy/python-prototype/LangGraph/**/__pycache__/

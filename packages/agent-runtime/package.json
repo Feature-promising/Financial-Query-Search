@@ -1,0 +1,19 @@
+{
+  "name": "@research/agent-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "files": ["dist"],
+  "type": "module",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "scripts": { "build": "tsc -p tsconfig.json", "check": "tsc --noEmit -p tsconfig.json", "test": "vitest run --passWithNoTests" },
+  "dependencies": {
+    "@langchain/langgraph": "^0.2.60",
+    "@research/contracts": "workspace:*",
+    "@research/knowledge": "workspace:*",
+    "@research/memory": "workspace:*",
+    "@research/observability": "workspace:*",
+    "@research/reports": "workspace:*",
+    "@research/tools": "workspace:*"
+  },
+  "devDependencies": { "zod": "^3.24.1" }
+}

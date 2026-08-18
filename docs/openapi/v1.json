@@ -1,0 +1,283 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Interactive Research Agent API",
+    "version": "v1",
+    "description": "Evidence-driven US-equity research API. Production requests require an OIDC bearer token; all resources are tenant scoped. Research outputs are for research and education only, not trade execution or personalized investment advice."
+  },
+  "servers": [{ "url": "https://research.example.internal" }],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/health": {
+      "get": { "security": [], "operationId": "health", "responses": { "200": { "description": "Service is healthy" } } }
+    },
+    "/ready": {
+      "get": { "security": [], "operationId": "readiness", "description": "Dependency-aware readiness probe for load balancers and deployment orchestration.", "responses": { "200": { "description": "Service is ready" }, "503": { "$ref": "#/components/responses/Unavailable" } } }
+    },
+    "/v1/conversations": {
+      "get": {
+        "operationId": "listConversations",
+        "parameters": [{ "name": "archived", "in": "query", "required": false, "schema": { "type": "boolean", "default": false }, "description": "When true, returns archived conversations instead of active conversations." }, { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }, "description": "Maximum number of conversations in this keyset page." }, { "name": "cursor", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/ConversationPageCursor" }, "description": "Opaque continuation cursor returned by the previous page. It does not bypass tenant, owner, archive, or deletion filters." }],
+        "responses": { "200": { "description": "Visible conversations ordered by last activity", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConversationListResponse" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/Internal" } }
+      },
+      "post": {
+        "operationId": "createConversation",
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateConversation" } } } },
+        "responses": { "201": { "description": "Conversation created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConversationView" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/conversations/{conversationId}": {
+      "parameters": [{ "$ref": "#/components/parameters/ConversationId" }],
+      "get": {
+        "operationId": "getConversation",
+        "responses": { "200": { "description": "Conversation and visible messages", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConversationDetailView" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/Internal" } }
+      },
+      "patch": {
+        "operationId": "renameConversation",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateConversation" } } } },
+        "responses": { "200": { "description": "Conversation renamed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConversationView" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/Internal" } }
+      },
+      "delete": {
+        "operationId": "deleteConversation",
+        "description": "Soft-deletes the visible conversation. Research runs, evidence, citations, and audit records are retained under their organization retention policy.",
+        "responses": { "204": { "description": "Conversation hidden from user session lists" }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/conversations/{conversationId}/archive": {
+      "parameters": [{ "$ref": "#/components/parameters/ConversationId" }],
+      "post": {
+        "operationId": "archiveConversation",
+        "responses": { "200": { "description": "Conversation archived", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConversationView" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/conversations/{conversationId}/unarchive": {
+      "parameters": [{ "$ref": "#/components/parameters/ConversationId" }],
+      "post": {
+        "operationId": "unarchiveConversation",
+        "responses": { "200": { "description": "Conversation restored to active sessions", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConversationView" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/conversations/{conversationId}/turns": {
+      "parameters": [{ "$ref": "#/components/parameters/ConversationId" }],
+      "post": {
+        "operationId": "createResearchTurn",
+        "description": "Creates an immutable ResearchRun and streams persisted events. Clients may reconnect through GET /v1/runs/{runId}/events with Last-Event-ID.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTurn" } } } },
+        "responses": { "200": { "$ref": "#/components/responses/RunEventStream" }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" }, "429": { "$ref": "#/components/responses/TooManyActiveRuns" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/runs/{runId}": {
+      "parameters": [{ "$ref": "#/components/parameters/RunId" }],
+      "get": {
+        "operationId": "getRun",
+        "responses": { "200": { "description": "Authorized replay summary", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResearchRunView" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/runs/{runId}/pause": {
+      "parameters": [{ "$ref": "#/components/parameters/RunId" }],
+      "post": {
+        "operationId": "pauseQueuedRun",
+        "description": "Pauses a queued run before any Worker can begin model or tool execution.",
+        "responses": { "200": { "description": "Paused replay summary", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResearchRunView" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/runs/{runId}/resume": {
+      "parameters": [{ "$ref": "#/components/parameters/RunId" }],
+      "post": {
+        "operationId": "resumeQueuedRun",
+        "description": "Returns a paused run's immutable command to the transactional outbox.",
+        "responses": { "200": { "description": "Requeued replay summary", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResearchRunView" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/runs/{runId}/events": {
+      "parameters": [{ "$ref": "#/components/parameters/RunId" }, { "$ref": "#/components/parameters/LastEventId" }],
+      "get": {
+        "operationId": "getRunEvents",
+        "description": "Returns JSON when Accept is application/json; returns a replayable SSE stream when Accept includes text/event-stream.",
+        "responses": { "200": { "$ref": "#/components/responses/RunEvents" }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/evidence/{evidenceId}": {
+      "parameters": [{ "$ref": "#/components/parameters/EvidenceId" }],
+      "get": {
+        "operationId": "getEvidence",
+        "description": "Returns source text and a stable locator only after tenant and data-entitlement filtering. A non-visible record is indistinguishable from a missing record.",
+        "responses": { "200": { "description": "Authorized evidence", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EvidenceView" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/memory/preferences": {
+      "get": {
+        "operationId": "listConfirmedPreferences",
+        "description": "Returns only the caller's explicitly confirmed, private planning/display preferences. These preferences are not research evidence.",
+        "responses": { "200": { "description": "Confirmed preferences", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConfirmedPreferenceList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/Internal" } }
+      },
+      "put": {
+        "operationId": "saveConfirmedPreference",
+        "description": "Creates or replaces one explicitly confirmed preference for the authenticated user. Preferences cannot be inferred from a research turn or written for another user.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SaveConfirmedPreference" } } } },
+        "responses": { "200": { "description": "Saved confirmed preference", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConfirmedPreferenceResponse" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/memory/{memoryId}": {
+      "parameters": [{ "$ref": "#/components/parameters/MemoryId" }],
+      "delete": {
+        "operationId": "deleteMemory",
+        "description": "The owning user or an administrator may delete a deletable memory record. Legal-hold records require a separate compliance workflow and cannot be deleted here. Related index and evidence deletion work is coordinated by the persistence layer. A 503 means cross-store cleanup or its durable audit result is uncertain; clients must not retry automatically.",
+        "responses": { "204": { "description": "Memory deleted with a durable completion audit" }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/MemoryRetentionLocked" }, "503": { "$ref": "#/components/responses/MemoryDeletionReconciliationRequired" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/reports": {
+      "post": {
+        "operationId": "getCompletedReportForRun",
+        "description": "Returns the latest versioned report only for a completed, cited run.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateReport" } } } },
+        "responses": { "202": { "description": "Versioned report", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResearchReportView" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "409": { "$ref": "#/components/responses/Conflict" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    },
+    "/v1/reports/{reportId}": {
+      "parameters": [{ "$ref": "#/components/parameters/ReportId" }],
+      "get": {
+        "operationId": "getReport",
+        "responses": { "200": { "description": "Authorized versioned report", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResearchReportView" } } } }, "400": { "$ref": "#/components/responses/InvalidRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/Internal" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" } },
+    "parameters": {
+      "ConversationId": { "name": "conversationId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "RunId": { "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "EvidenceId": { "name": "evidenceId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "MemoryId": { "name": "memoryId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "ReportId": { "name": "reportId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "LastEventId": { "name": "Last-Event-ID", "in": "header", "required": false, "schema": { "type": "integer", "minimum": 0 }, "description": "Last received SSE sequence for reconnect replay." }
+    },
+    "responses": {
+      "InvalidRequest": { "description": "Request body or parameters did not satisfy the versioned contract", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "Unauthorized": { "description": "OIDC authentication is missing or invalid", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "Forbidden": { "description": "The authenticated identity cannot perform this operation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "NotFound": { "description": "The resource does not exist or is not visible to this tenant", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "Conflict": { "description": "The requested state transition is not valid", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "MemoryRetentionLocked": { "description": "The memory is under legal hold and requires a separate compliance release workflow.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "TooManyActiveRuns": { "description": "The caller or organization has reached its bounded active-research-run quota", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "MemoryDeletionReconciliationRequired": { "description": "Cross-store memory deletion or its durable audit needs operator reconciliation; do not retry automatically.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "Internal": { "description": "An unexpected internal error occurred; the requestId is safe to provide to support", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "Unavailable": { "description": "A required dependency is unavailable; retry after the platform marks the service ready", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "RunEvents": {
+        "description": "Persisted events or a reconnectable stream",
+        "content": {
+          "application/json": { "schema": { "type": "object", "required": ["events"], "properties": { "events": { "type": "array", "items": { "$ref": "#/components/schemas/RunEvent" } } } } },
+          "text/event-stream": { "schema": { "$ref": "#/components/schemas/RunEvent" } }
+        }
+      },
+      "RunEventStream": { "description": "Live, persisted research-run events. The `x-research-run-id` response header is the immutable run ID for reconnect and the queue-safe pause control.", "headers": { "x-research-run-id": { "description": "Server-assigned immutable research-run UUID.", "schema": { "type": "string", "format": "uuid" } } }, "content": { "text/event-stream": { "schema": { "$ref": "#/components/schemas/RunEvent" } } } }
+    },
+    "schemas": {
+      "CreateConversation": { "type": "object", "properties": { "title": { "type": "string", "minLength": 1, "maxLength": 140 } }, "additionalProperties": false },
+      "UpdateConversation": { "type": "object", "required": ["title"], "properties": { "title": { "type": "string", "minLength": 1, "maxLength": 140 } }, "additionalProperties": false },
+      "CreateTurn": { "type": "object", "required": ["question"], "properties": { "question": { "type": "string", "minLength": 1, "maxLength": 12000 } }, "additionalProperties": false },
+      "CreateReport": { "type": "object", "required": ["runId"], "properties": { "runId": { "type": "string", "format": "uuid" } }, "additionalProperties": false },
+      "ConfirmedPreference": {
+        "description": "A user-confirmed, non-evidentiary planning or display default. It must never be used as a financial fact or citation.",
+        "oneOf": [
+          { "type": "object", "required": ["key", "value"], "properties": { "key": { "const": "valuation_method" }, "value": { "type": "string", "enum": ["DCF", "comparable_companies", "precedent_transactions", "blended"] } }, "additionalProperties": false },
+          { "type": "object", "required": ["key", "value"], "properties": { "key": { "const": "focus_industries" }, "value": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "type": "string", "minLength": 1, "maxLength": 80 } } }, "additionalProperties": false },
+          { "type": "object", "required": ["key", "value"], "properties": { "key": { "const": "comparison_framework" }, "value": { "type": "string", "minLength": 1, "maxLength": 160 } }, "additionalProperties": false },
+          { "type": "object", "required": ["key", "value"], "properties": { "key": { "const": "display_unit" }, "value": { "type": "string", "enum": ["USD", "USD thousands", "USD millions", "USD billions", "percentage", "basis points"] } }, "additionalProperties": false }
+        ],
+        "discriminator": { "propertyName": "key" }
+      },
+      "SaveConfirmedPreference": { "type": "object", "required": ["preference"], "properties": { "preference": { "$ref": "#/components/schemas/ConfirmedPreference" } }, "additionalProperties": false },
+      "ConfirmedPreferenceResponse": { "type": "object", "required": ["preference"], "properties": { "preference": { "$ref": "#/components/schemas/ConfirmedPreference" } }, "additionalProperties": false },
+      "ConfirmedPreferenceList": { "type": "object", "required": ["preferences"], "properties": { "preferences": { "type": "array", "maxItems": 4, "items": { "$ref": "#/components/schemas/ConfirmedPreference" } } }, "additionalProperties": false },
+      "ConversationView": { "description": "Public conversation projection. Tenant and creator identity remain server-side audit data.", "type": "object", "required": ["id", "title", "createdAt", "updatedAt", "archivedAt"], "properties": { "id": { "type": "string", "format": "uuid" }, "title": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" }, "archivedAt": { "type": ["string", "null"], "format": "date-time" } } },
+      "ConversationPageCursor": { "type": "string", "maxLength": 128, "description": "Opaque keyset position returned by the conversation list API." },
+      "ConversationListResponse": { "type": "object", "required": ["conversations", "nextCursor"], "properties": { "conversations": { "type": "array", "items": { "$ref": "#/components/schemas/ConversationView" } }, "nextCursor": { "type": ["string", "null"], "description": "Pass this value back as cursor to request the next page; null means the current result is the final page." } }, "additionalProperties": false },
+      "ConversationDetailView": { "type": "object", "required": ["conversation", "messages"], "properties": { "conversation": { "$ref": "#/components/schemas/ConversationView" }, "messages": { "type": "array", "items": { "$ref": "#/components/schemas/ConversationMessageView" } } } },
+      "ConversationMessageView": { "type": "object", "required": ["id", "role", "content", "createdAt"], "properties": { "id": { "type": "string", "format": "uuid" }, "role": { "type": "string", "enum": ["user", "assistant"] }, "content": { "type": "string" }, "runId": { "type": "string", "format": "uuid" }, "createdAt": { "type": "string", "format": "date-time" } } },
+      "ResearchRunView": { "description": "Public run projection. Tenant and creator identity remain server-side audit data.", "type": "object", "required": ["id", "conversationId", "question", "status", "budget", "events"], "properties": { "id": { "type": "string", "format": "uuid" }, "conversationId": { "type": "string", "format": "uuid" }, "question": { "type": "string" }, "status": { "type": "string", "enum": ["queued", "running", "paused", "completed", "abstained", "failed"] }, "answer": { "type": "string" }, "budget": { "$ref": "#/components/schemas/RunBudget" }, "events": { "type": "array", "items": { "$ref": "#/components/schemas/RunEvent" } } } },
+      "RunBudget": { "type": "object", "required": ["maxTasks", "maxToolCalls", "maxToolDurationMs", "maxRunDurationMs", "maxCriticRepairs", "maxEstimatedCostUsd"], "properties": { "maxTasks": { "type": "integer", "maximum": 12 }, "maxToolCalls": { "type": "integer", "maximum": 30 }, "maxToolDurationMs": { "type": "integer", "maximum": 20000 }, "maxRunDurationMs": { "type": "integer", "maximum": 300000 }, "maxCriticRepairs": { "type": "integer", "maximum": 1 }, "maxEstimatedCostUsd": { "type": "number", "maximum": 50 } } },
+      "RunEvent": {
+        "description": "A persisted, validated research-run event. The event type and payload shape form one closed discriminated union; consumers must reject unknown variants.",
+        "oneOf": [
+          { "$ref": "#/components/schemas/RunStartedEvent" },
+          { "$ref": "#/components/schemas/RunRecoveredEvent" },
+          { "$ref": "#/components/schemas/RunPausedEvent" },
+          { "$ref": "#/components/schemas/RunResumedEvent" },
+          { "$ref": "#/components/schemas/IntentReadyEvent" },
+          { "$ref": "#/components/schemas/PlanReadyEvent" },
+          { "$ref": "#/components/schemas/TaskStartedEvent" },
+          { "$ref": "#/components/schemas/ToolCompletedEvent" },
+          { "$ref": "#/components/schemas/EvidenceReadyEvent" },
+          { "$ref": "#/components/schemas/ClaimDeltaEvent" },
+          { "$ref": "#/components/schemas/CriticResultEvent" },
+          { "$ref": "#/components/schemas/CompletedEvent" },
+          { "$ref": "#/components/schemas/AbstainedEvent" },
+          { "$ref": "#/components/schemas/FailedEvent" }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "run_started": "#/components/schemas/RunStartedEvent",
+            "run_recovered": "#/components/schemas/RunRecoveredEvent",
+            "run_paused": "#/components/schemas/RunPausedEvent",
+            "run_resumed": "#/components/schemas/RunResumedEvent",
+            "intent_ready": "#/components/schemas/IntentReadyEvent",
+            "plan_ready": "#/components/schemas/PlanReadyEvent",
+            "task_started": "#/components/schemas/TaskStartedEvent",
+            "tool_completed": "#/components/schemas/ToolCompletedEvent",
+            "evidence_ready": "#/components/schemas/EvidenceReadyEvent",
+            "claim_delta": "#/components/schemas/ClaimDeltaEvent",
+            "critic_result": "#/components/schemas/CriticResultEvent",
+            "completed": "#/components/schemas/CompletedEvent",
+            "abstained": "#/components/schemas/AbstainedEvent",
+            "failed": "#/components/schemas/FailedEvent"
+          }
+        }
+      },
+      "RunEventBase": {
+        "type": "object",
+        "required": ["id", "runId", "sequence", "at", "type", "payload"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "runId": { "type": "string", "format": "uuid" },
+          "sequence": { "type": "integer", "minimum": 1 },
+          "at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RunStartedEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "run_started" }, "payload": { "$ref": "#/components/schemas/RunStartedPayload" } } }] },
+      "RunRecoveredEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "run_recovered" }, "payload": { "$ref": "#/components/schemas/RunRecoveredPayload" } } }] },
+      "RunPausedEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "run_paused" }, "payload": { "$ref": "#/components/schemas/RunControlPayload" } } }] },
+      "RunResumedEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "run_resumed" }, "payload": { "$ref": "#/components/schemas/RunControlPayload" } } }] },
+      "IntentReadyEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "intent_ready" }, "payload": { "$ref": "#/components/schemas/IntentPayload" } } }] },
+      "PlanReadyEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "plan_ready" }, "payload": { "$ref": "#/components/schemas/ResearchPlanPayload" } } }] },
+      "TaskStartedEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "task_started" }, "payload": { "$ref": "#/components/schemas/TaskStartedPayload" } } }] },
+      "ToolCompletedEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "tool_completed" }, "payload": { "$ref": "#/components/schemas/ToolCompletedPayload" } } }] },
+      "EvidenceReadyEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "evidence_ready" }, "payload": { "$ref": "#/components/schemas/EvidenceReadyPayload" } } }] },
+      "ClaimDeltaEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "claim_delta" }, "payload": { "$ref": "#/components/schemas/ClaimPayload" } } }] },
+      "CriticResultEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "critic_result" }, "payload": { "$ref": "#/components/schemas/CriticResultPayload" } } }] },
+      "CompletedEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "completed" }, "payload": { "$ref": "#/components/schemas/PublishedAnswerPayload" } } }] },
+      "AbstainedEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "abstained" }, "payload": { "$ref": "#/components/schemas/AbstainedAnswerPayload" } } }] },
+      "FailedEvent": { "allOf": [{ "$ref": "#/components/schemas/RunEventBase" }, { "type": "object", "required": ["type", "payload"], "properties": { "type": { "const": "failed" }, "payload": { "$ref": "#/components/schemas/RunFailurePayload" } } }] },
+      "RunStartedPayload": { "type": "object", "required": ["question"], "properties": { "question": { "type": "string", "minLength": 1, "maxLength": 12000 } }, "additionalProperties": false },
+      "RunRecoveredPayload": { "type": "object", "required": ["checkpointPhase", "reason"], "properties": { "checkpointPhase": { "type": "string", "enum": ["context_loaded", "intent_analyzed", "planned"] }, "reason": { "type": "string", "minLength": 1 } }, "additionalProperties": false },
+      "RunControlPayload": { "type": "object", "required": ["reason", "safeBoundary"], "properties": { "reason": { "const": "user_requested" }, "safeBoundary": { "const": "queued" } }, "additionalProperties": false },
+      "IntentPayload": { "type": "object", "required": ["category", "entities", "tickers", "period", "complexity", "riskLevel", "requiredCapabilities"], "properties": { "category": { "type": "string", "enum": ["company_analysis", "comparison", "earnings", "industry", "valuation", "report", "other"] }, "entities": { "type": "array", "maxItems": 10, "items": { "type": "string" } }, "tickers": { "type": "array", "maxItems": 10, "items": { "type": "string", "pattern": "^[A-Z.]{1,10}$" } }, "period": { "type": ["string", "null"] }, "complexity": { "type": "string", "enum": ["simple", "research", "deep_research"] }, "riskLevel": { "type": "string", "enum": ["low", "medium", "high"] }, "requiredCapabilities": { "type": "array", "items": { "type": "string" } } }, "additionalProperties": false },
+      "ResearchTaskPayload": { "type": "object", "required": ["id", "title", "objective", "dependsOn", "allowedTools", "acceptanceCriteria", "status"], "properties": { "id": { "type": "string", "minLength": 1 }, "title": { "type": "string", "minLength": 1 }, "objective": { "type": "string", "minLength": 1 }, "dependsOn": { "type": "array", "items": { "type": "string" } }, "allowedTools": { "type": "array", "minItems": 1, "items": { "type": "string" } }, "acceptanceCriteria": { "type": "array", "minItems": 1, "items": { "type": "string" } }, "status": { "type": "string", "enum": ["pending", "running", "completed", "failed", "skipped"] } }, "additionalProperties": false },
+      "ResearchPlanPayload": { "type": "object", "required": ["summary", "tasks"], "properties": { "summary": { "type": "string", "minLength": 1, "maxLength": 4000 }, "tasks": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "$ref": "#/components/schemas/ResearchTaskPayload" } } }, "additionalProperties": false },
+      "TaskStartedPayload": { "type": "object", "required": ["taskId", "title"], "properties": { "taskId": { "type": "string", "minLength": 1, "maxLength": 120 }, "title": { "type": "string", "minLength": 1, "maxLength": 1000 } }, "additionalProperties": false },
+      "ToolFailurePayload": { "type": "object", "required": ["code", "message", "retryable"], "properties": { "code": { "type": "string", "enum": ["UNAUTHORIZED", "DISABLED", "TIMEOUT", "INVALID_INPUT", "UNAVAILABLE", "BUDGET_EXCEEDED", "INTERNAL"] }, "message": { "type": "string" }, "retryable": { "type": "boolean" } }, "additionalProperties": false },
+      "ToolCompletedPayload": { "type": "object", "required": ["taskId", "toolId", "ok", "estimatedCostUsd"], "properties": { "taskId": { "type": "string", "minLength": 1, "maxLength": 120 }, "toolId": { "type": "string", "minLength": 1, "maxLength": 120 }, "ok": { "type": "boolean" }, "failure": { "$ref": "#/components/schemas/ToolFailurePayload" }, "estimatedCostUsd": { "type": "number", "minimum": 0 } }, "allOf": [{ "if": { "properties": { "ok": { "const": false } }, "required": ["ok"] }, "then": { "required": ["failure"] } }, { "if": { "properties": { "ok": { "const": true } }, "required": ["ok"] }, "then": { "not": { "required": ["failure"] } } }], "additionalProperties": false },
+      "EvidenceReadyPayload": { "type": "object", "required": ["count"], "properties": { "count": { "type": "integer", "minimum": 0, "maximum": 10000 } }, "additionalProperties": false },
+      "ClaimPayload": { "type": "object", "required": ["id", "text", "evidenceIds", "confidence", "qualification"], "properties": { "id": { "type": "string", "format": "uuid" }, "text": { "type": "string", "minLength": 1 }, "evidenceIds": { "type": "array", "minItems": 1, "items": { "type": "string", "format": "uuid" } }, "confidence": { "type": "number", "minimum": 0, "maximum": 1 }, "qualification": { "type": ["string", "null"] } }, "additionalProperties": false },
+      "CriticResultPayload": { "type": "object", "required": ["publishable", "reason", "rejectedClaimIds", "phase"], "properties": { "publishable": { "type": "boolean" }, "reason": { "type": "string", "minLength": 1, "maxLength": 8000 }, "rejectedClaimIds": { "type": "array", "maxItems": 1000, "items": { "type": "string", "format": "uuid" } }, "phase": { "type": "string", "enum": ["initial", "after_repair", "cost_budget_exhausted", "run_deadline_exceeded", "worker_shutdown", "report_rendering"] }, "repairScheduled": { "type": "boolean" }, "repairReason": { "type": "string", "minLength": 1, "maxLength": 1000 }, "repairAttempt": { "type": "integer", "minimum": 1, "maximum": 1 } }, "additionalProperties": false },
+      "PublishedAnswerPayload": { "type": "object", "required": ["answer", "evidenceCount"], "properties": { "answer": { "type": "string", "minLength": 1, "maxLength": 200000 }, "evidenceCount": { "type": "integer", "minimum": 0, "maximum": 10000 } }, "additionalProperties": false },
+      "AbstainedAnswerPayload": { "type": "object", "required": ["answer", "evidenceCount"], "properties": { "answer": { "type": "string", "minLength": 1, "maxLength": 20000 }, "evidenceCount": { "type": "integer", "minimum": 0, "maximum": 10000 } }, "additionalProperties": false },
+      "RunFailurePayload": { "oneOf": [{ "type": "object", "required": ["code", "message"], "properties": { "code": { "const": "RUN_FAILED" }, "message": { "const": "Research execution failed before publication. Review the run trace with support if the problem persists." } }, "additionalProperties": false }, { "type": "object", "required": ["code", "message"], "properties": { "code": { "const": "RUN_LEASE_EXPIRED" }, "message": { "const": "Research execution lease expired; automatic replay is permitted only before tool execution." } }, "additionalProperties": false }] },
+      "EvidenceView": { "description": "Public evidence projection. Tenant, entitlement and ingestion metadata remain server-side.", "type": "object", "required": ["id", "title", "content", "locator", "license"], "properties": { "id": { "type": "string", "format": "uuid" }, "title": { "type": "string" }, "content": { "type": "string" }, "locator": { "type": "string" }, "sourceUrl": { "type": ["string", "null"], "format": "uri", "pattern": "^https?://", "description": "HTTP(S) source link only." }, "asOfDate": { "type": ["string", "null"], "format": "date" }, "license": { "type": "string" } } },
+      "ApiError": { "type": "object", "required": ["code", "message", "requestId"], "properties": { "code": { "type": "string", "enum": ["INVALID_REQUEST", "UNAUTHORIZED", "FORBIDDEN", "NOT_FOUND", "CONVERSATION_ARCHIVED", "RUN_NOT_QUEUED", "RUN_LIMIT_EXCEEDED", "RUN_PAUSE_UNAVAILABLE", "RUN_RESUME_UNAVAILABLE", "REPORT_NOT_READY", "MEMORY_RETENTION_LOCKED", "MEMORY_DELETION_INCOMPLETE", "MEMORY_DELETION_AUDIT_UNAVAILABLE", "UNAVAILABLE", "INTERNAL"] }, "message": { "type": "string" }, "requestId": { "type": "string", "description": "Opaque request correlation identifier." } } },
+      "ResearchReportView": { "description": "Public, tenant-authorized report projection. Organization identity remains server-side.", "type": "object", "required": ["id", "runId", "version", "markdown", "citations", "createdAt"], "properties": { "id": { "type": "string", "format": "uuid" }, "runId": { "type": "string", "format": "uuid" }, "version": { "type": "integer", "minimum": 1 }, "markdown": { "type": "string" }, "citations": { "type": "array", "items": { "$ref": "#/components/schemas/ReportCitation" } }, "createdAt": { "type": "string", "format": "date-time" } } },
+      "ReportCitation": { "type": "object", "required": ["number", "evidenceId", "title", "locator", "license"], "properties": { "number": { "type": "integer", "minimum": 1 }, "evidenceId": { "type": "string", "format": "uuid" }, "title": { "type": "string" }, "locator": { "type": "string" }, "sourceUrl": { "type": ["string", "null"], "format": "uri", "pattern": "^https?://", "description": "HTTP(S) source link only." }, "asOfDate": { "type": ["string", "null"], "format": "date" }, "license": { "type": "string" } } }
+    }
+  }
+}

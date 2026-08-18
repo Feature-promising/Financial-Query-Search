@@ -1,0 +1,23 @@
+{
+  "name": "@research/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "check": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "@research/contracts": "workspace:*",
+    "next": "^15.1.2",
+    "oidc-client-ts": "^3.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.2"
+  }
+}

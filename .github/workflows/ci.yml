@@ -1,0 +1,87 @@
+name: Quality Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm check:openapi
+      - run: pnpm check:infra
+      - run: pnpm check:container
+      - run: pnpm check:ci
+      - run: pnpm check:operations
+      - run: pnpm check:runtime-profiles
+      - run: pnpm eval:golden
+      - run: pnpm -r test
+
+  container-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production API image
+        run: docker build --target api --tag interactive-research-agent-api:ci .
+      - name: Build production Worker image
+        run: docker build --target worker --tag interactive-research-agent-worker:ci .
+      - name: Build production Web image
+        run: >-
+          docker build --target web
+          --build-arg NEXT_PUBLIC_API_URL=https://api.example.invalid
+          --build-arg NEXT_PUBLIC_OIDC_AUTHORITY=https://identity.example.invalid
+          --build-arg NEXT_PUBLIC_OIDC_CLIENT_ID=research-web-ci
+          --build-arg NEXT_PUBLIC_OIDC_REDIRECT_URI=https://research.example.invalid/auth/callback
+          --build-arg NEXT_PUBLIC_OIDC_SCOPE='openid profile email'
+          --tag interactive-research-agent-web:ci .
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: research_agent
+          POSTGRES_USER: research_agent
+          POSTGRES_PASSWORD: research_agent
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U research_agent -d research_agent"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      NODE_ENV: test
+      PERSISTENCE_MODE: postgres
+      DATABASE_URL: postgresql://research_agent:research_agent@localhost:5432/research_agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter @research/worker migrate
+      - run: pnpm --filter @research/db exec node scripts/verify-publication.mjs
